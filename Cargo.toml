@@ -1,0 +1,23 @@
+[package]
+name = "tracing-web"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+js-sys = "0.3.59"
+time = { version = "0.3.13", features = ["wasm-bindgen"] }
+tracing-core = "0.1.29"
+tracing-subscriber = "0.3.15"
+wasm-bindgen = { version = "0.2.82", default-features = false }
+web-sys = { version = "0.3.59", features = ["console"], default-features = false }
+
+[dev-dependencies.tracing-subscriber]
+version = "0.3.15"
+features = ["time"]
+
+[workspace]
+members = [
+    "examples/trace-yew-app"
+]
