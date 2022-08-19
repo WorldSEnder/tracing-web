@@ -1,4 +1,4 @@
-//! A tracing subscriber for web platforms
+//! A tracing compatible subscriber layer for web platforms.
 //!
 //! # Example usage
 //!

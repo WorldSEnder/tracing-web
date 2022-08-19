@@ -2,8 +2,15 @@
 name = "tracing-web"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = [
+  "Martin Molzer <WorldSEnder@users.noreply.github.com>",
+]
+license = "MIT OR Apache-2.0"
+keywords = ["web", "wasm", "tracing", "log"]
+categories = ["debugging", "wasm", "web-programming"]
+description = "A tracing compatible subscriber layer for web platforms."
+readme = "README.md"
+repository = "https://github.com/WorldSEnder/tracing-web"
 
 [dependencies]
 js-sys = "0.3.59"
