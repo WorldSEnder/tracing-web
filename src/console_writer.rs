@@ -11,9 +11,9 @@ use web_sys::console;
 ///
 /// | Level     | Method           |
 /// |-----------|------------------|
-/// | TRACE     | console.trace    |
-/// | INFO      | console.info     |
+/// | TRACE     | console.debug    |
 /// | DEBUG     | console.debug    |
+/// | INFO      | console.info     |
 /// | WARN      | console.warn     |
 /// | ERROR     | console.error    |
 /// | other     | console.log      |
@@ -46,15 +46,11 @@ impl Drop for ConsoleWriter {
     }
 }
 
-fn _console_null(_: &str) {}
-fn console_trace(msg: &str) {
-    console::trace_1(&JsValue::from(msg))
+fn console_debug(msg: &str) {
+    console::debug_1(&JsValue::from(msg))
 }
 fn console_info(msg: &str) {
     console::info_1(&JsValue::from(msg))
-}
-fn console_debug(msg: &str) {
-    console::debug_1(&JsValue::from(msg))
 }
 fn console_warn(msg: &str) {
     console::warn_1(&JsValue::from(msg))
@@ -78,12 +74,11 @@ impl<'a> MakeWriter<'a> for MakeConsoleWriter {
 
     fn make_writer_for(&'a self, meta: &tracing_core::Metadata<'_>) -> Self::Writer {
         let level = meta.level();
-        let log_fn = if *level == Level::TRACE {
-            console_trace
+        let log_fn = if *level == Level::TRACE || *level == Level::DEBUG {
+            // Even though console.trace exists and generates stack traces, it logs with level: info, so leads to verbose logs
+            console_debug
         } else if *level == Level::INFO {
             console_info
-        } else if *level == Level::DEBUG {
-            console_debug
         } else if *level == Level::WARN {
             console_warn
         } else if *level == Level::ERROR {
