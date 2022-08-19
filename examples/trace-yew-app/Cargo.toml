@@ -2,11 +2,12 @@
 name = "trace-yew-app"
 version = "0.1.0"
 edition = "2021"
+publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 yew = { git = "https://github.com/yewstack/yew.git", features = ["csr"] }
-tracing = "*"
-tracing-subscriber = { version = "*", features = ["time"] }
+tracing = { version = "*", default-features = false }
+tracing-subscriber = { version = "*", default-features = false, features = ["time"] }
 tracing-web = { path = "../.." }
