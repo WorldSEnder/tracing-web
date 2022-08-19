@@ -9,5 +9,6 @@ publish = false
 [dependencies]
 yew = { git = "https://github.com/yewstack/yew.git", features = ["csr"] }
 tracing = { version = "*", default-features = false }
-tracing-subscriber = { version = "*", default-features = false, features = ["time"] }
+tracing-subscriber = { version = "*", features = ["time"] }
 tracing-web = { path = "../.." }
+time = { version = "*", features = ["wasm-bindgen"] }
