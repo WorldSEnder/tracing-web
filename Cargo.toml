@@ -7,7 +7,7 @@ authors = [
 ]
 license = "MIT OR Apache-2.0"
 keywords = ["web", "wasm", "tracing", "log"]
-categories = ["debugging", "wasm", "web-programming"]
+categories = ["development-tools::debugging", "wasm", "web-programming"]
 description = "A tracing compatible subscriber layer for web platforms."
 readme = "README.md"
 repository = "https://github.com/WorldSEnder/tracing-web"
