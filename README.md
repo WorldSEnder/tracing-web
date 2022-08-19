@@ -16,7 +16,7 @@ A [`tracing`] compatible subscriber layer for web platforms.
 [docs-url]: https://docs.rs/tracing-web
 [mit-badge]: https://img.shields.io/badge/license-MIT-blue.svg
 [mit-url]: LICENSE-MIT
-[apache-badge]: https://img.shields.io/badge/license-MIT-blue.svg
+[apache-badge]: https://img.shields.io/badge/license-Apache-blue.svg
 [apache-url]: LICENSE-APACHE
 
 # Overview
