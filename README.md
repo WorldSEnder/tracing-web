@@ -48,7 +48,7 @@ fn main() {
 }
 ```
 
-Note: To use `UtcTime` on `web` targets, you need to enable the `wasm_bindgen` feature of the `time`
+Note: To use `UtcTime` on `web` targets, you need to enable the `wasm-bindgen` feature of the `time`
 crate, for example by adding the following to your `Cargo.toml`.
 
 ```toml
