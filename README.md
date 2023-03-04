@@ -34,7 +34,7 @@ use tracing_subscriber::prelude::*;
 fn main() {
     let fmt_layer = tracing_subscriber::fmt::layer()
         .with_ansi(false) // Only partially supported across browsers
-        .with_timer(UtcTime::rfc_3339()) // std::time is not available in browsers
+        .with_timer(UtcTime::rfc_3339()) // see also note below
         .with_writer(MakeConsoleWriter); // write events to the console
     let perf_layer = performance_layer()
         .with_details_from_fields(Pretty::default());
@@ -46,6 +46,13 @@ fn main() {
 
     todo!("write your awesome application");
 }
+```
+
+Note: To use `UtcTime` on `web` targets, you need to enable the `wasm_bindgen` feature of the `time`
+crate, for example by adding the following to your `Cargo.toml`.
+
+```toml
+time = { version = "0.3", features = ["wasm-bindgen"] }
 ```
 
 [`tracing-subscriber`]: https://crates.io/crates/tracing-subscriber
