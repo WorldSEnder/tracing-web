@@ -20,7 +20,7 @@ use web_sys::console;
 ///
 /// ### Note
 ///
-/// Since version `0.1.3`, you should prefer the alternative, more powerful [MakeWebConsoleWriter].
+/// Since version `0.1.3`, you should prefer the alternative, more powerful [`MakeWebConsoleWriter`].
 // For now, I have decided against deprecating this. While I do intend to deprecate or even remove it in 0.2, a warning is probably too picky on downstream developers.
 // #[deprecated(
 //     since = "0.1.3",
@@ -98,11 +98,17 @@ impl Drop for ConsoleWriter {
     }
 }
 
+// Now, for the implementation details. For each supported log level, we have a dummy type with a trait impl providing
+// the (1) "simple" logging via the console.* methods, just forwarding the message and (2) "pretty" logging which passes
+// additional CSS along. The trait makes it convenient to instantiate a generic parameter below to obtain the needed
+// fn pointers for the applicable dispatcher.
+
 trait LogImpl {
     fn log_simple(level: Level, msg: &str);
     fn log_pretty(level: Level, msg: &str);
 }
 
+const MESSAGE_STYLE: &str = "background: inherit; color: inherit;";
 macro_rules! make_log_impl {
     ($T:ident {
         simple: $s:expr,
@@ -120,8 +126,7 @@ macro_rules! make_log_impl {
             fn log_pretty(_level: Level, msg: &str) {
                 let fmt = JsValue::from(wasm_bindgen::intern($f));
                 let label_style = JsValue::from(wasm_bindgen::intern($l));
-                let msg_style =
-                    JsValue::from(wasm_bindgen::intern("background: inherit; color: inherit;"));
+                let msg_style = JsValue::from(wasm_bindgen::intern(MESSAGE_STYLE));
                 $p(&fmt, &label_style, &msg_style, &JsValue::from(msg));
             }
         }
@@ -129,11 +134,13 @@ macro_rules! make_log_impl {
 }
 
 // Even though console.trace exists and generates stack traces, it logs with level: info, so leads to verbose logs, so log with debug
-make_log_impl!(LogLevelTrace { simple: console::debug_1, pretty: { log: console::debug_4, fmt: "%cTRACE%c %s", label_style: "color: white; font-weight: bold; padding: 0 3px; background: #75507B;" } });
-make_log_impl!(LogLevelDebug { simple: console::debug_1, pretty: { log: console::debug_4, fmt: "%cDEBUG%c %s", label_style: "color: white; font-weight: bold; padding: 0 3px; background: #3465A4;" } });
-make_log_impl!(LogLevelInfo  { simple: console::info_1,  pretty: { log: console::info_4,  fmt: "%cINFO%c %s", label_style: "color: white; font-weight: bold; padding: 0 3px; background: #4E9A06;" } });
-make_log_impl!(LogLevelWarn  { simple: console::warn_1,  pretty: { log: console::warn_4,  fmt: "%cWARN%c %s", label_style: "color: white; font-weight: bold; padding: 0 3px; background: #C4A000;" } });
-make_log_impl!(LogLevelError { simple: console::error_1, pretty: { log: console::error_4, fmt: "%cERROR%c %s", label_style: "color: white; font-weight: bold; padding: 0 3px; background: #CC0000;" } });
+make_log_impl!(LogLevelTrace { simple: console::debug_1, pretty: { log: console::debug_4, fmt: "%cTRACE%c %s", label_style: "color: white; font-weight: bold; padding: 0 5px; background: #75507B;" } });
+make_log_impl!(LogLevelDebug { simple: console::debug_1, pretty: { log: console::debug_4, fmt: "%cDEBUG%c %s", label_style: "color: white; font-weight: bold; padding: 0 5px; background: #3465A4;" } });
+make_log_impl!(LogLevelInfo  { simple: console::info_1,  pretty: { log: console::info_4,  fmt: "%c INFO%c %s", label_style: "color: white; font-weight: bold; padding: 0 5px; background: #4E9A06;" } });
+make_log_impl!(LogLevelWarn  { simple: console::warn_1,  pretty: { log: console::warn_4,  fmt: "%c WARN%c %s", label_style: "color: white; font-weight: bold; padding: 0 5px; background: #C4A000;" } });
+make_log_impl!(LogLevelError { simple: console::error_1, pretty: { log: console::error_4, fmt: "%cERROR%c %s", label_style: "color: white; font-weight: bold; padding: 0 5px; background: #CC0000;" } });
+
+// This impl serves as a fallback for potential additions to tracing's levels that I can't forsee. It should not be reachable in code as of the time of writing, but might be in future additions to tracing.
 struct LogLevelFallback;
 impl LogImpl for LogLevelFallback {
     #[inline(always)]
@@ -145,12 +152,18 @@ impl LogImpl for LogLevelFallback {
     fn log_pretty(level: Level, msg: &str) {
         let fmt = JsValue::from(wasm_bindgen::intern("%c%s%c %s"));
         let label_level = JsValue::from(format!("{}", level));
-        let label_style = JsValue::from(wasm_bindgen::intern(""));
-        let msg_style = JsValue::from(wasm_bindgen::intern(""));
+        // Note: `text-transform` might not have perfect browser support, but is available in at least Firefox and Chrome at the time of writing
+        let label_style = JsValue::from(wasm_bindgen::intern(
+            "color: white; font-weight: bold; padding: 0 5px; background: #424242; text-transform: uppercase;",
+        ));
+        let msg_style = JsValue::from(wasm_bindgen::intern(MESSAGE_STYLE));
         let msg = JsValue::from(msg);
         console::log_5(&fmt, &label_style, &label_level, &msg_style, &msg)
     }
 }
+
+// An additional trait (implemented again by dummy types) makes it convenient to select the correct
+// logging implementation. We can then generalize in `select_dispatcher`.
 
 trait LogImplStyle {
     fn get_dispatch<L: LogImpl>(&self) -> LogDispatcher;
@@ -187,7 +200,7 @@ fn select_dispatcher(style: impl LogImplStyle, level: Level) -> LogDispatcher {
 }
 
 impl MakeConsoleWriter {
-    // "upgrade" to the non-deprecated version of MakeConsoleWriter, mainly to unify code paths.
+    // "upgrade" to a MakeWebConsoleWriter, mainly to unify code paths.
     fn upgrade(&self) -> MakeWebConsoleWriter {
         MakeWebConsoleWriter {
             use_pretty_label: false,
