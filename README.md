@@ -26,16 +26,15 @@ subscriber that emits messages to the dev-tools console, and events to the [Perf
 configuration can look like
 
 ```rust
-use tracing_web::{MakeConsoleWriter, performance_layer};
+use tracing_web::{MakeWebConsoleWriter, performance_layer};
 use tracing_subscriber::fmt::format::Pretty;
-use tracing_subscriber::fmt::time::UtcTime;
 use tracing_subscriber::prelude::*;
 
 fn main() {
     let fmt_layer = tracing_subscriber::fmt::layer()
         .with_ansi(false) // Only partially supported across browsers
-        .with_timer(UtcTime::rfc_3339()) // see also note below
-        .with_writer(MakeConsoleWriter); // write events to the console
+        .without_time()   // std::time is not available in browsers, see note below
+        .with_writer(MakeWebConsoleWriter::new()); // write events to the console
     let perf_layer = performance_layer()
         .with_details_from_fields(Pretty::default());
 
@@ -48,8 +47,8 @@ fn main() {
 }
 ```
 
-Note: To use `UtcTime` on `web` targets, you need to enable the `wasm-bindgen` feature of the `time`
-crate, for example by adding the following to your `Cargo.toml`.
+Note: You can alternatively use `.with_timer(UtcTime::rfc_3339())` with [`UtcTime`] on `web` targets if you enable
+the `wasm-bindgen` feature of the `time` crate, for example by adding the following to your `Cargo.toml`.
 
 ```toml
 time = { version = "0.3", features = ["wasm-bindgen"] }
@@ -57,6 +56,7 @@ time = { version = "0.3", features = ["wasm-bindgen"] }
 
 [`tracing-subscriber`]: https://crates.io/crates/tracing-subscriber
 [Performance API]: https://developer.mozilla.org/en-US/docs/Web/API/Performance
+[`UtcTime`]: https://docs.rs/tracing-subscriber/0.3.18/tracing_subscriber/fmt/time/struct.UtcTime.html
 
 # License
 
