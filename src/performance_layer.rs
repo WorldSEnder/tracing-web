@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 
-use js_sys::{JsString, Object, Reflect};
 use tracing_core::{span, Subscriber};
 use tracing_subscriber::{
     field::RecordFields,
@@ -9,68 +8,47 @@ use tracing_subscriber::{
     registry::{Extensions, ExtensionsMut, LookupSpan, SpanRef},
     Layer,
 };
-use wasm_bindgen::{prelude::wasm_bindgen, JsCast, JsValue};
+use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
+use web_sys::{Performance, PerformanceMarkOptions, PerformanceMeasureOptions};
 
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_name = _fakeGlobal)]
     type Global;
-    #[wasm_bindgen()]
-    type Performance;
     #[wasm_bindgen(static_method_of = Global, js_class = "globalThis", getter)]
     fn performance() -> Performance;
-    #[wasm_bindgen(method, catch, js_name = "mark")]
-    fn do_mark(this: &Performance, name: &str) -> Result<(), JsValue>;
-    #[wasm_bindgen(method, catch, js_name = "mark")]
-    fn do_mark_with_details(
-        this: &Performance,
-        name: &str,
-        details: &JsValue,
-    ) -> Result<(), JsValue>;
-    #[wasm_bindgen(method, catch, js_name = "measure")]
-    fn do_measure_with_start_mark_and_end_mark(
-        this: &Performance,
-        name: &str,
-        start: &str,
-        end: &str,
-    ) -> Result<(), JsValue>;
-    #[wasm_bindgen(method, catch, js_name = "measure")]
-    fn do_measure_with_details(
-        this: &Performance,
-        name: &str,
-        details: &JsValue,
-    ) -> Result<(), JsValue>;
 }
 
-impl Performance {
-    fn mark(&self, name: &str) -> Result<(), JsValue> {
-        self.do_mark(name)
-    }
-    fn mark_detailed(&self, name: &str, details: &str) -> Result<(), JsValue> {
-        let details_obj = Object::create(JsValue::NULL.unchecked_ref::<Object>());
-        let detail_prop = JsString::from(wasm_bindgen::intern("detail"));
-        Reflect::set(&details_obj, &detail_prop, &JsValue::from(details)).unwrap();
-        self.do_mark_with_details(name, &details_obj)
-    }
-    fn measure(&self, name: &str, start: &str, end: &str) -> Result<(), JsValue> {
-        self.do_measure_with_start_mark_and_end_mark(name, start, end)
-    }
-    fn measure_detailed(
-        &self,
-        name: &str,
-        start: &str,
-        end: &str,
-        details: &str,
-    ) -> Result<(), JsValue> {
-        let details_obj = Object::create(JsValue::NULL.unchecked_ref::<Object>());
-        let detail_prop = JsString::from(wasm_bindgen::intern("detail"));
-        let start_prop = JsString::from(wasm_bindgen::intern("start"));
-        let end_prop = JsString::from(wasm_bindgen::intern("end"));
-        Reflect::set(&details_obj, &detail_prop, &JsValue::from(details)).unwrap();
-        Reflect::set(&details_obj, &start_prop, &JsValue::from(start)).unwrap();
-        Reflect::set(&details_obj, &end_prop, &JsValue::from(end)).unwrap();
-        self.do_measure_with_details(name, &details_obj)
-    }
+fn do_mark(p: &Performance, name: &str) -> Result<(), JsValue> {
+    p.mark(name)?;
+    Ok(())
+}
+
+fn do_mark_detailed(p: &Performance, name: &str, details: &str) -> Result<(), JsValue> {
+    let opts = PerformanceMarkOptions::new();
+    opts.set_detail(&JsValue::from_str(details));
+    p.mark_with_mark_options(name, &opts)?;
+    Ok(())
+}
+
+fn do_measure(p: &Performance, name: &str, start: &str, end: &str) -> Result<(), JsValue> {
+    p.measure_with_str_and_end_mark(name, start, end)?;
+    Ok(())
+}
+
+fn do_measure_detailed(
+    p: &Performance,
+    name: &str,
+    start: &str,
+    end: &str,
+    details: &str,
+) -> Result<(), JsValue> {
+    let opts = PerformanceMeasureOptions::new();
+    opts.set_detail(&JsValue::from_str(details));
+    opts.set_start(start);
+    opts.set_end(end);
+    p.measure_with_performance_measure_options(name, &opts)?;
+    Ok(())
 }
 
 thread_local! {
@@ -157,9 +135,9 @@ where
         let mark_name = self.span_record_name(&span);
         let _ = PERF.with(|p| {
             if let Some(details) = self.fmt_details.find_details(&span.extensions()) {
-                p.mark_detailed(&mark_name, details)
+                do_mark_detailed(p, &mark_name, details)
             } else {
-                p.mark(&mark_name)
+                do_mark(p, &mark_name)
             }
         }); // Ignore errors
     }
@@ -168,9 +146,9 @@ where
         let mark_name = self.span_enter_name(&span);
         let _ = PERF.with(|p| {
             if let Some(details) = self.fmt_details.find_details(&span.extensions()) {
-                p.mark_detailed(&mark_name, details)
+                do_mark_detailed(p, &mark_name, details)
             } else {
-                p.mark(&mark_name)
+                do_mark(p, &mark_name)
             }
         }); // Ignore errors
     }
@@ -181,16 +159,17 @@ where
         let mark_measure_name = self.span_measure_name(&span);
         let _ = PERF.with(|p| {
             if let Some(details) = self.fmt_details.find_details(&span.extensions()) {
-                p.mark_detailed(&mark_exit_name, details)?;
-                p.measure_detailed(
+                do_mark_detailed(p, &mark_exit_name, details)?;
+                do_measure_detailed(
+                    p,
                     &mark_measure_name,
                     &mark_enter_name,
                     &mark_exit_name,
                     details,
                 )?;
             } else {
-                p.mark(&mark_exit_name)?;
-                p.measure(&mark_measure_name, &mark_enter_name, &mark_exit_name)?;
+                do_mark(p, &mark_exit_name)?;
+                do_measure(p, &mark_measure_name, &mark_enter_name, &mark_exit_name)?;
             }
             Result::<(), JsValue>::Ok(())
         }); // Ignore errors
