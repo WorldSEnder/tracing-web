@@ -8,10 +8,15 @@
 //! use tracing_subscriber::fmt::time::UtcTime;
 //! use tracing_subscriber::prelude::*;
 //!
+//! let console_writer = MakeWebConsoleWriter::new();
 //! let fmt_layer = tracing_subscriber::fmt::layer()
 //!     .with_ansi(false) // Only partially supported across browsers
 //!     .without_time()   // std::time is not available in browsers
-//!     .with_writer(MakeWebConsoleWriter::new()); // write events to the console
+//!     .with_writer(console_writer); // write events to the console
+//!
+//! // The performance_layer records span entry and exit, and events to the Performance
+//! // Web API. Each event gets a mark, and a measure represents the during between entry
+//! // and exit.
 //! let perf_layer = performance_layer().with_details_from_fields(Pretty::default());
 //!
 //! tracing_subscriber::registry()

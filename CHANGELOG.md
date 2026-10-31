@@ -1,3 +1,7 @@
+## Version 0.1.4
+
+- Use `JsValue::from_utf8_lossy` when pushing the log to javascript to save an allocation.
+
 ## Version 0.1.3
 
 - Add `MakeWebConsoleWriter`, a more configurable alternative to``MakeConsoleWriter`.

@@ -68,7 +68,7 @@ impl MakeWebConsoleWriter {
     }
 }
 
-type LogDispatcher = fn(Level, &str);
+type LogDispatcher = fn(Level, &[u8]);
 
 /// Concrete [`std::io::Write`] implementation returned by [`MakeConsoleWriter`] and [`MakeWebConsoleWriter`].
 pub struct ConsoleWriter {
@@ -90,11 +90,7 @@ impl Write for ConsoleWriter {
 
 impl Drop for ConsoleWriter {
     fn drop(&mut self) {
-        // TODO: it's rather pointless to decoded to utf-8 here,
-        //  just to re-encode as utf-16 when crossing wasm-bindgen boundaries
-        // we could use TextDecoder directly to produce a
-        let message = String::from_utf8_lossy(&self.buffer);
-        (self.log)(self.level, message.as_ref())
+        (self.log)(self.level, &self.buffer)
     }
 }
 
@@ -104,8 +100,8 @@ impl Drop for ConsoleWriter {
 // fn pointers for the applicable dispatcher.
 
 trait LogImpl {
-    fn log_simple(level: Level, msg: &str);
-    fn log_pretty(level: Level, msg: &str);
+    fn log_simple(level: Level, msg: &[u8]);
+    fn log_pretty(level: Level, msg: &[u8]);
 }
 
 const MESSAGE_STYLE: &str = "background: inherit; color: inherit;";
@@ -119,15 +115,20 @@ macro_rules! make_log_impl {
         struct $T;
         impl LogImpl for $T {
             #[inline(always)]
-            fn log_simple(_level: Level, msg: &str) {
-                $s(&JsValue::from(msg));
+            fn log_simple(_level: Level, msg: &[u8]) {
+                $s(&JsValue::from_utf8_lossy(msg));
             }
             #[inline(always)]
-            fn log_pretty(_level: Level, msg: &str) {
+            fn log_pretty(_level: Level, msg: &[u8]) {
                 let fmt = JsValue::from(wasm_bindgen::intern($f));
                 let label_style = JsValue::from(wasm_bindgen::intern($l));
                 let msg_style = JsValue::from(wasm_bindgen::intern(MESSAGE_STYLE));
-                $p(&fmt, &label_style, &msg_style, &JsValue::from(msg));
+                $p(
+                    &fmt,
+                    &label_style,
+                    &msg_style,
+                    &JsValue::from_utf8_lossy(msg),
+                );
             }
         }
     };
@@ -144,12 +145,12 @@ make_log_impl!(LogLevelError { simple: console::error_1, pretty: { log: console:
 struct LogLevelFallback;
 impl LogImpl for LogLevelFallback {
     #[inline(always)]
-    fn log_simple(_level: Level, msg: &str) {
-        console::log_1(&JsValue::from(msg))
+    fn log_simple(_level: Level, msg: &[u8]) {
+        console::log_1(&JsValue::from_utf8_lossy(msg))
     }
 
     #[inline(always)]
-    fn log_pretty(level: Level, msg: &str) {
+    fn log_pretty(level: Level, msg: &[u8]) {
         let fmt = JsValue::from(wasm_bindgen::intern("%c%s%c %s"));
         let label_level = JsValue::from(format!("{}", level));
         // Note: `text-transform` might not have perfect browser support, but is available in at least Firefox and Chrome at the time of writing
@@ -157,7 +158,7 @@ impl LogImpl for LogLevelFallback {
             "color: white; font-weight: bold; padding: 0 5px; background: #424242; text-transform: uppercase;",
         ));
         let msg_style = JsValue::from(wasm_bindgen::intern(MESSAGE_STYLE));
-        let msg = JsValue::from(msg);
+        let msg = JsValue::from_utf8_lossy(msg);
         console::log_5(&fmt, &label_style, &label_level, &msg_style, &msg)
     }
 }

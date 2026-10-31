@@ -26,22 +26,19 @@ subscriber that emits messages to the dev-tools console, and events to the [Perf
 configuration can look like
 
 ```rust
-use tracing_web::{MakeWebConsoleWriter, performance_layer};
-use tracing_subscriber::fmt::format::Pretty;
+use tracing_web::MakeWebConsoleWriter;
 use tracing_subscriber::prelude::*;
 
 fn main() {
+    let console_writer = MakeWebConsoleWriter::new();
     let fmt_layer = tracing_subscriber::fmt::layer()
         .with_ansi(false) // Only partially supported across browsers
         .without_time()   // std::time is not available in browsers, see note below
-        .with_writer(MakeWebConsoleWriter::new()); // write events to the console
-    let perf_layer = performance_layer()
-        .with_details_from_fields(Pretty::default());
+        .with_writer(console_writer); // write events to the console
 
     tracing_subscriber::registry()
         .with(fmt_layer)
-        .with(perf_layer)
-        .init(); // Install these as subscribers to tracing events
+        .init(); // Install as subscriber to tracing events
 
     todo!("write your awesome application");
 }
